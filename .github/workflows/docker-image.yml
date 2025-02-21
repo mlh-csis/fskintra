@@ -1,0 +1,53 @@
+name: Docker Multi-architecture Image CI
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository_owner }}/fskintra
+
+jobs:
+  build-and-push-image:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: amd64
+          - os: ubuntu-22.04-arm
+            arch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Log in to the Container registry
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+          
+      - name: Build and push
+        run: |
+          docker build --tag ghcr.io/${{ github.repository_owner }}/fskintra-${{ matrix.arch }}:latest .
+          docker push ghcr.io/${{ github.repository_owner }}/fskintra-${{ matrix.arch }}:latest
+  
+  docker_manifest:
+    needs: build-and-push-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to the Container registry
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+          
+      - name: Create and push manifest
+        run: |
+          docker manifest create ghcr.io/${{ github.repository_owner }}/fskintra:latest ghcr.io/${{ github.repository_owner }}/fskintra-amd64:latest ghcr.io/${{ github.repository_owner }}/fskintra-arm64:latest
+          docker manifest push ghcr.io/${{ github.repository_owner }}/fskintra:latest
