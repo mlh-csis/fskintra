@@ -25,4 +25,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/mlh-csis/fskintra:$(date +%s)
+          tags: ghcr.io/mlh-csis/fskintra:latest
