@@ -8,28 +8,45 @@ on:
 
 jobs:
   build-and-push-image:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            arch: amd64
+          - os: ubuntu-22.04-arm
+            arch: arm64
+    
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-        
       - name: Log in to the Container registry
         uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
         with:
           registry: https://ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GHCR_TOKEN }}
-          
-      - name: Build and push Docker image
-        uses: docker/build-push-action@ad44023a93711e3deb337508980b4b5e9bcdc5dc
+      - name: Build and push
+        run: |
+            docker build --tag ${{env.USER}}/fskintra:${{matrix.arch}}  .
+            docker push ${{env.USER}}/fskintra:${{matrix.arch}}
+    
+    
+  docker_manifest:
+    needs: build-and-push-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Log in to the Container registry
+        uses: docker/login-action@f054a8b539a109f9f41c372932f1ae047eff08c9
         with:
-          context: .
-          push: true
-          platforms: linux/amd64,linux/arm64
-          tags: ghcr.io/mlh-csis/fskintra:latest
+          registry: https://ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
+      - name: Create and push manifest
+        run: |
+            docker manifest create ${{env.USER}}/fskintra ${{env.USER}}/fskintra:amd64 ${{env.USER}}/fskintra:arm64
+            docker manifest push ${{env.USER}}/fskintra
+
+    
+
+
