@@ -42,39 +42,48 @@ def formatHomework(cname, bs):
         html_temp += u'<tbody>'
         # Locate each table with homework
         table = li.find('table')
-        for row in table.select('tbody tr'):
-            delete_row = False
-            # Loop through each cell in the row
-            for cell in row.find_all('td'):
-                # Remove unneded tags
-                if cell.find('span'):
-                    cell.span.unwrap()
-                if cell.find('div'):
-                    for div in cell.find_all('div'):
-                        cell.div.unwrap()
-                del cell['style']
-                cell.string = '<br/>'.join(cell.stripped_strings)
-                if cell.string == '':  # '\xa0':
-                    delete_row = True
+        # Sometimes there is just a general comment and no homework, in which case there is no table
+        if table:
+            for row in table.select('tbody tr'):
+                delete_row = False
+                # Loop through each cell in the row
+                for cell in row.find_all('td'):
+                    # Remove unneded tags
+                    if cell.find('span'):
+                        cell.span.unwrap()
+                    if cell.find('div'):
+                        for div in cell.find_all('div'):
+                            cell.div.unwrap()
+                    del cell['style']
+                    cell.string = '<br/>'.join(cell.stripped_strings)
+                    if cell.string == '':  # '\xa0':
+                        delete_row = True
+                    else:
+                        if '&nbsp;' in cell and not delete_row:
+                            cell = cell.replace('&nbsp;', ' ')
+                            # cell.content = cell_html
+                        # print(cell)
+                # Delete empty rowns
+                if delete_row:
+                    row.decompose()
                 else:
-                    if '&nbsp;' in cell and not delete_row:
-                        cell = cell.replace('&nbsp;', ' ')
-                        # cell.content = cell_html
-                    # print(cell)
-            # Delete empty rowns
-            if delete_row:
-                row.decompose()
-            else:
-                html_temp += (
-                    u'<tr style="font-size:14px">'
-                    u'<td style="width:173">{0}:</td>'
-                    u'<td style="width:717">{1}</td>'
-                    u'</tr>').format(
-                        row.select_one(
-                            'td:nth-of-type(1)').get_text(strip=True),
-                        row.select_one(
-                            'td:nth-of-type(2)').get_text(strip=True)
-                )
+                    html_temp += (
+                        u'<tr style="font-size:14px">'
+                        u'<td style="width:173">{0}:</td>'
+                        u'<td style="width:717">{1}</td>'
+                        u'</tr>').format(
+                            row.select_one(
+                                'td:nth-of-type(1)').get_text(strip=True),
+                            row.select_one(
+                                'td:nth-of-type(2)').get_text(strip=True)
+                    )
+        else:
+            # No table, just a general comment, get it all and put it in a single cell unstripped
+            html_temp += (
+                u'<tr style="font-size:14px">'
+                u'<td style="width:890:">{0}</td>'
+                u'</tr>').format(li.get_text())
+
         html_temp += u'</tbody></table><br>'
         checksum = md5.md5(html_temp.encode('utf8')).hexdigest()
         if checksum in previouslySent:
